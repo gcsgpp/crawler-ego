@@ -25,14 +25,22 @@ def limpezaNome(i):
 def crawlerFamosoRelacionados():
     listafamosos = model.buscarListaFamoso()
     for i in listafamosos:
-        html = urllib.request.urlopen(i['link'])
-        soup = bs(html, "html_parser")
+        famoso = {'id': i[0], 'nome': i[1].decode("utf-8"), 'link': i[2].decode("utf-8"), 'nascimento': i[3], 'idade': i[4], 'signo': i[5], 'relacionamento': i[6], 'conjuge': i[7]}
+        html = urllib.request.urlopen("http://ego.globo.com" + famoso['link'])
+        soup = bs(html, "html.parser")
         listaRelacionados = soup.find("ul", class_ = "famosos-relacionados").find_all("a")
+
+        print("Inserindo famosos relacionados de: " + str(famoso['nome']))
         for j in listaRelacionados:
-            linkRelacionado = j.content
-            nomeRelacionado = j.find("img").alt
-            famosoRelacionado = {"idFamoso1": i.id, "nome": nomeRelacionado, "link": linkRelacionado }
-            model.inserirFamosoRelacionado(famosoRelacionado)
+            linkRelacionado = j.attrs['href']
+            nomeRelacionado = j.find("img").attrs['alt']
+            famosoRelacionado = {"idFamoso1": famoso['id'], "nome": nomeRelacionado, "link": linkRelacionado }
+
+            if model.verificarFamosoRelacionadoJaInserido(famosoRelacionado['idFamoso1'],famosoRelacionado['nome']) == False:
+                model.inserirFamosoRelacionado(famosoRelacionado)
+                print("  - Famoso: " + str(famosoRelacionado['nome']) + " inserido com sucesso.")
+            else:
+                print("  - Famoso: " + str(famosoRelacionado['nome']) + " já inserido.")
 
 def crawlerListaFamosos():
     html = urllib.request.urlopen("http://ego.globo.com/famosos/")
@@ -101,5 +109,5 @@ def crawlerListaFamosos():
                 model.gravarLog(idMensagens = 12, nomeFamoso = famoso['nome'])
                 print("Erro inesperado ao obter detalhes do famoso. Gravado no log com sucesso! Famoso: " + famoso['nome'])
 
-crawlerListaFamosos()
-'''crawlerFamosoRelacionados()'''
+'''crawlerListaFamosos()'''
+crawlerFamosoRelacionados()

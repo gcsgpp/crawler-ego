@@ -57,9 +57,6 @@ def processarNoticias():
                 i['titulo'] = i['titulo'].replace("\t","")
                 i['titulo'] = i['titulo'].replace("\r","")
 
-                if i['titulo'] == "Munhoz e Mariano pedem orações para família de Cristiano Araújo":
-                    print("carai")
-
                 if model.verificarNoticiaInserida(i['titulo'], i['permalink']) == False:
                     if i['tipo'] == "materia":
                         paragrafos = soup.find('div', class_ = "materia-conteudo").find_all('p')

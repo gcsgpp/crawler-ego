@@ -21,7 +21,7 @@ def inserirFamosoRelacionado(famosoRelacionado):
 
     id = buscarFamosoPorNome(famosoRelacionado['nome'])
     if id != False and id > 0:
-        sql = "INSERT INTO famosos_relacionados (idFamoso1, idFamoso2) VALUES(" + str(famosoRelacionado['idFamoso1']) + " , " + str(id )+ ")"
+        sql = "INSERT INTO famoso_relacionado (idFamoso1, idFamoso2) VALUES(" + str(famosoRelacionado['idFamoso1']) + " , " + str(id )+ ")"
 
         try:
             cursor.execute(sql)
@@ -37,11 +37,37 @@ def inserirFamosoRelacionado(famosoRelacionado):
     cursor.close()
     cnx.close()
 
-def buscarFamosoPorNome(cnx, nomeFamoso):
+def verificarFamosoRelacionadoJaInserido(idFamoso, nomeFamosoRelacionado):
+    cnx = conexao()
+    cursor = cnx.cursor(buffered = True)
+
+    idFamoso2 = buscarFamosoPorNome(nomeFamosoRelacionado)
+    sql = "SELECT * FROM famoso_relacionado WHERE idFamoso1 = '" + str(idFamoso) + "' and idFamoso2 = '" + str(idFamoso2) + "'"
+
+    try:
+        cursor.execute(sql)
+        result = cursor.fetchone()
+
+        if result != None:
+            return True
+        else:
+            return False
+
+        cursor.close()
+        cnx.close()
+    except Exception as e:
+        print("Erro ao verificar Famoso relacionado já existe.")
+        print(str(e))
+        gravarLog(idMensagens = 21,idFamoso = idFamoso, idFamoso2 = idFamoso2)
+
+
+
+
+def buscarFamosoPorNome(nomeFamoso):
     cnx = conexao()
     cursor = cnx.cursor(buffered = True)
     try:
-        query = "SELECT * FROM famoso where nome = '" + nomeFamoso + "'"
+        query = "SELECT * FROM famoso where nome = '" + str(nomeFamoso) + "'"
         cursor.execute(query)
         result = cursor.fetchone()
         if result != None:
@@ -219,7 +245,7 @@ def cadastrarNoticia(noticia):
     if noticia['tipo'] == "materia": noticia['tipo'] = 1
     elif noticia['tipo'] == "galeria": noticia['tipo'] = 2
 
-    sql = 'INSERT INTO noticia(titulo, link, tipo, texto, dataPrimeiraPublicacao) VALUES("' + str(noticia['titulo']) + '","' + str(noticia['link']) + '","' + str(noticia['tipo']) + '","' + str(noticia['texto']) + '","' + str(noticia['data']) + '")'
+    sql = 'INSERT INTO noticia(titulo, subtitulo, link, tipo, texto, dataPrimeiraPublicacao) VALUES("' + str(noticia['titulo']) + '","' + str(noticia['subtitulo']) + '","' + str(noticia['link']) + '","' + str(noticia['tipo']) + '","' + str(noticia['texto']) + '","' + str(noticia['data']) + '")'
 
     try:
         cursor.execute(sql)
@@ -239,6 +265,9 @@ def verificarNoticiaInserida(titulo, link):
     cursor = cnx.cursor(buffered = True)
 
     sql = 'SELECT * from noticia WHERE noticia.titulo = "' + str(titulo) + '" or noticia.link = "' + str(link) + '"'
+
+    if "em clima de festa junina" in titulo:
+        print("debug")
 
     try:
         cursor.execute(sql)
