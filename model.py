@@ -8,7 +8,7 @@ def gravarLog(idMensagens, idFamoso = '', idFamoso2 = '', idNoticia = '', nomeFa
     cnx = conexao()
     cursor = cnx.cursor(buffered = True)
 
-    sql = "INSERT INTO log(idMensagensLog, idFamoso, idFamoso2, idNoticia, nomeFamoso, tituloNoticia, link) VALUES('" + str(idMensagens) + "','" + str(idFamoso) + "','" + str(idFamoso2) + "','" + str(idNoticia) + "','" + str(nomeFamoso) + "','" + str(tituloNoticia) + "','" + str(link) + "')"
+    sql = 'INSERT INTO log(idMensagensLog, idFamoso, idFamoso2, idNoticia, nomeFamoso, tituloNoticia, link) VALUES("' + str(idMensagens) + '","' + str(idFamoso) + '","' + str(idFamoso2) + '","' + str(idNoticia) + '","' + str(nomeFamoso) + '","' + str(tituloNoticia) + '","' + str(link) + '")'
 
     cursor.execute(sql)
     cnx.commit()
@@ -26,13 +26,22 @@ def inserirFamosoRelacionado(famosoRelacionado):
         try:
             cursor.execute(sql)
             cnx.commit()
+            return True
         except Exception as e:
             print(str(e))
             print("Erro ao inserir famoso relacionado")
             gravarLog(idMensagens = 15, idFamoso = famosoRelacionado['idFamoso1'], idFamoso2 = id)
+            return False
+    elif  id >= 1:
+        return False
+        print(" - Famoso relacionado já inserido no BD. Famoso relacionado: " + str(famosoRelacionado))
+    elif id == False:
+        print("Famoso relacionado não encontrado no BD.")
+        gravarLog(idMensagens = 22, idFamoso = famosoRelacionado['idFamoso1'], nomeFamoso = famosoRelacionado['nome'])
     else:
-        print("Erro ao encontrar famoso pelo nome.")
+        print("Erro ao encontrar famoso pelo nome. ***********************************************")
         gravarLog(idMensagens = 14, nomeFamoso = famosoRelacionado['nome'])
+        return False
 
     cursor.close()
     cnx.close()
@@ -42,7 +51,7 @@ def verificarFamosoRelacionadoJaInserido(idFamoso, nomeFamosoRelacionado):
     cursor = cnx.cursor(buffered = True)
 
     idFamoso2 = buscarFamosoPorNome(nomeFamosoRelacionado)
-    sql = "SELECT * FROM famoso_relacionado WHERE idFamoso1 = '" + str(idFamoso) + "' and idFamoso2 = '" + str(idFamoso2) + "'"
+    sql = "SELECT * FROM famoso_relacionado WHERE (" + "idFamoso1 = '" + str(idFamoso) + "' and idFamoso2 = '" + str(idFamoso2) + "') or (" + "idFamoso1 = '" + str(idFamoso2) + "' and idFamoso2 = '" + str(idFamoso) + "')"
 
     try:
         cursor.execute(sql)
@@ -67,7 +76,7 @@ def buscarFamosoPorNome(nomeFamoso):
     cnx = conexao()
     cursor = cnx.cursor(buffered = True)
     try:
-        query = "SELECT * FROM famoso where nome = '" + str(nomeFamoso) + "'"
+        query = 'SELECT * FROM famoso where nome = "' + str(nomeFamoso) + '"'
         cursor.execute(query)
         result = cursor.fetchone()
         if result != None:
@@ -85,7 +94,7 @@ def verificarFamosoInserido(cnx, nomeFamoso):
     cnx = conexao()
     cursor = cnx.cursor(buffered = True)
     try:
-        query = "SELECT * FROM famoso where nome = '" + nomeFamoso + "'"
+        query = 'SELECT * FROM famoso where nome = "' + nomeFamoso + '"'
         cursor.execute(query)
         result = cursor.fetchall()
         if len(result) == 0:
@@ -100,7 +109,7 @@ def verificarFamosoInserido(cnx, nomeFamoso):
     cnx.close()
 
 
-def inserirfamososdb(famoso):
+def inserirfamososdb(famoso, qtdAtualFamoso = 0, qtdTotalFamosos = 0):
     cnx = conexao()
     cursor = cnx.cursor(buffered = True)
 
@@ -109,20 +118,21 @@ def inserirfamososdb(famoso):
     else:
         if famoso['conjuge'] != None:
             try:
-                query = "SELECT id FROM famoso WHERE famoso.link = '" + str(famoso['conjuge']) + "'"
+                query = 'SELECT id FROM famoso WHERE famoso.link = "' + str(famoso['conjuge']) + '"'
                 cursor.execute(query)
                 result = cursor.fetchall()
                 result = result[0]
             except:
+                print("Nao foi possivel encontrar conjuge na tabela de famosos")
                 gravarLog(idMensagens = 9, nomeFamoso = famoso['nome'])
 
         try:
-            query = "INSERT INTO famoso(nome, link, datanascimento, idade, signo, relacionamento, conjuge) VALUES('" + str(famoso['nome']) + "' , '" + str(famoso['link']) + "' , '" + str(famoso['datanascimento']) + "' , '" + str(famoso['idade']) + "' , '" + str(famoso['signo']) + "', '" + str(famoso['relacionamento']) + "' , '" + str(famoso['conjuge']) + "')"
+            query = 'INSERT INTO famoso(nome, link, datanascimento, idade, signo, relacionamento, conjuge) VALUES("' + str(famoso['nome']) + '" , "' + str(famoso['link']) + '" , "' + str(famoso['datanascimento']) + '" , "' + str(famoso['idade']) + '" , "' + str(famoso['signo']) + '", "' + str(famoso['relacionamento']) + '" , "' + str(famoso['conjuge']) + '")'
 
             cursor.execute(query)
             cnx.commit()
-            gravarLog(idMensagens = 3, idFamoso = cursor.lastrowid)
-            print(famoso['nome'] + " INSERIDO COM SUCESSO.")
+            '''gravarLog(idMensagens = 3, idFamoso = cursor.lastrowid)'''
+            print(str(qtdAtualFamoso) + "/" + str(qtdTotalFamosos) + " - " + famoso['nome'] + " INSERIDO COM SUCESSO.")
         except:
             gravarLog(idMensagens = 8, nomeFamoso = famoso['nome'])
             print("Erro ao inserir famoso na lista. Famoso: " + famoso['nome'] + "**********************************")
@@ -166,7 +176,7 @@ def buscarTipoRelacionamento(descricaoRelacionamento, nomeFamoso):
 def buscarConjugeJaInserido(nomeConjuge, nomeFamoso):
     cnx = conexao()
     cursor = cnx.cursor(buffered = True)
-    sql = "SELECT * FROM conjuge WHERE nome = '" + str(nomeConjuge) + "'"
+    sql = 'SELECT * FROM conjuge WHERE nome = "' + str(nomeConjuge) + '"'
     try:
         cursor.execute(sql)
         result = cursor.fetchone()
@@ -189,7 +199,7 @@ def inserirConjuge(conjugeNome, nomeFamoso):
     try:
         conjugeId = buscarConjugeJaInserido(conjugeNome,nomeFamoso)
         if conjugeId == False:
-            sql = "INSERT INTO conjuge (nome) VALUES('" + str(conjugeNome) + "')"
+            sql = 'INSERT INTO conjuge (nome) VALUES("' + str(conjugeNome) + '")'
             cursor.execute(sql)
             cnx.commit()
 
@@ -232,11 +242,22 @@ def buscarListaFamoso():
     cnx = conexao()
     cursor = cnx.cursor(buffered = True)
     sql = "SELECT * from famoso"
-    cursor.execute(sql)
-    result = cursor.fetchall()
-    cursor.close()
-    cnx.close()
-    return result
+    try:
+        cursor.execute(sql)
+        result = cursor.fetchall()
+
+        cursor.close()
+        cnx.close()
+
+        result = converterListaUTF8(result)
+
+        return result
+    except Exception as e:
+        print(str(e))
+        print("Erro ao buscar lista de famosos")
+        gravarLog(idMensagens = 24)
+        return False
+
 
 def cadastrarNoticia(noticia):
     cnx = conexao()
@@ -251,7 +272,7 @@ def cadastrarNoticia(noticia):
         cursor.execute(sql)
         cnx.commit()
         print("Noticia: " + noticia['titulo'])
-        gravarLog(idMensagens = 4, idNoticia = cursor.lastrowid)
+        '''gravarLog(idMensagens = 4, idNoticia = cursor.lastrowid)'''
     except Exception as e:
         print(str(e))
         print("Não foi possivel cadastrar a noticia: " + noticia['link'] + "    *********")
@@ -265,9 +286,6 @@ def verificarNoticiaInserida(titulo, link):
     cursor = cnx.cursor(buffered = True)
 
     sql = 'SELECT * from noticia WHERE noticia.titulo = "' + str(titulo) + '" or noticia.link = "' + str(link) + '"'
-
-    if "em clima de festa junina" in titulo:
-        print("debug")
 
     try:
         cursor.execute(sql)
@@ -284,3 +302,90 @@ def verificarNoticiaInserida(titulo, link):
         print("Noticia já cadastrada. Titulo: " + str(titulo))
         return True
 
+def buscarListaNoticias():
+    cnx = conexao()
+    cursor = cnx.cursor(buffered = True)
+
+    sql = "SELECT * FROM noticia"
+
+    try:
+        cursor.execute(sql)
+        result = cursor.fetchall()
+
+        cursor.close()
+        cnx.close()
+
+        result = converterListaUTF8(result)
+
+        return result
+    except Exception as e:
+        print(str(e))
+        print("Erro ao buscar lista de noticias")
+        gravarLog(idMensagens = 23)
+        return False
+def verificarRelacionamentoFamosoNoticia(idFamoso, idNoticia):
+    cnx = conexao()
+    cursor = cnx.cursor()
+    sql = "SELECT * FROM famoso_noticia WHERE idFamoso = '" + str(idFamoso) + "' and idNoticia = '" + str(idNoticia) + "'"
+    try:
+        cursor.execute(sql)
+        result = cursor.fetchall()
+        cursor.close()
+        cnx.close()
+        return result
+    except Exception as e:
+        print(str(e))
+        print("Erro ao executar verificação se famoso ja esta relacionado")
+        gravarLog(idMensagens=26, idFamoso = idFamoso, idNoticia = idNoticia)
+        return False
+
+def relacionarFamosoNoticia(nomeFamoso, idNoticia):
+    cnx = conexao()
+    cursor = cnx.cursor(buffered = True)
+    idFamoso = buscarFamosoPorNome(nomeFamoso)
+
+    famosoJaRelacionadoNoticia = verificarRelacionamentoFamosoNoticia(idFamoso, idNoticia)
+
+    if len(famosoJaRelacionadoNoticia) > 0:
+        return False
+
+
+    sql = "INSERT INTO famoso_noticia(idFamoso, idNoticia) VALUES(" + str(idFamoso) + " , " + str(idNoticia) + ")"
+    try:
+        cursor.execute(sql)
+        cnx.commit()
+
+        cursor.close()
+        cnx.close()
+    except Exception as e:
+        print(str(e))
+        print("Erro ao inserir relacionamento do Famoso com a Noticia. Famoso: " + str(nomeFamoso) + " idNoticia: " + str(idNoticia))
+        gravarLog(idMensagens = 25, idFamoso = idFamoso, idNoticia = idNoticia)
+
+def converterListaUTF8(lista):
+    listaConvertida = []
+    for i in lista:
+        if type(i) == list or type(i) == tuple:
+            result = converterListaUTF8(i)
+        elif type(i) == bytearray or type(i) == bytes:
+            result = i.decode("UTF-8")
+        else:
+            result = i
+
+        listaConvertida.append(result)
+
+    return tuple(listaConvertida)
+
+def buscarNoticia(link):
+    cnx = conexao()
+    cursor = cnx.cursor(buffered = True)
+    sql = "SELECT * from noticia WHERE link = '" + str(link) + "'"
+    try:
+        cursor.execute(sql)
+        result = cursor.fetchone()
+        cursor.close()
+        cnx.close()
+        return converterListaUTF8(result)
+    except Exception as e:
+        print(str(e))
+        return False
