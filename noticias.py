@@ -41,50 +41,54 @@ def buscarnoticiasjson(pagina):
                             return False
                         noticiaErro += 1
                     tentativas += 1
-                    time.sleep(2)
+                    time.sleep(5)
 
 
-def processarNoticias():
-    noticias = {}
-    pagina = 479; ''' 496; ultima pagina: 5364'''
-    while noticias != False:
-        noticias = buscarnoticiasjson(pagina)
-        if noticias != False:
-            pagina = noticias['ultimaPagina'] + 1
-            for i in noticias['noticias']:
-                html = urllib.request.urlopen(i['permalink'])
-                soup = bs(html, "html.parser")
-                i['titulo'] = i['titulo'].replace("\n","")
-                i['titulo'] = i['titulo'].replace("\t","")
-                i['titulo'] = i['titulo'].replace("\r","")
-                i['titulo'] = i['titulo'].replace('"', "'")
-                i['titulo'] = i['titulo'].replace("\u266a","")
-                i['titulo'] = i['titulo'].strip()
+def processarNoticias(noticias):
+    for i in noticias:
+        try:
+            html = urllib.request.urlopen(i['permalink'])
+            soup = bs(html, "html.parser")
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                print("Noticia não encontrada. (Erro 404) - Proxima noticia... ")
+                model.gravarLog(idMensagens=11, link=i['permalink'])
+                continue
+        i['titulo'] = i['titulo'].replace("\n","")
+        i['titulo'] = i['titulo'].replace("\t","")
+        i['titulo'] = i['titulo'].replace("\r","")
+        i['titulo'] = i['titulo'].replace('"', "'")
+        i['titulo'] = i['titulo'].replace("\u266a","")
+        i['titulo'] = i['titulo'].replace("\u200f","")
+        i['titulo'] = i['titulo'].strip()
 
-                if model.verificarNoticiaInserida(i['titulo'], i['permalink']) == False:
-                    if i['tipo'] == "materia":
-                        paragrafos = soup.find('div', class_ = "materia-conteudo").find_all('p')
-                        texto = ""
-                        for j in paragrafos:
-                            temp = j.get_text()
-                            temp = temp.replace("\n","")
-                            temp = temp.replace("\t","")
-                            temp = temp.replace("\r","")
-                            temp = temp.replace("\u266a","")
-                            if len(temp) > 3:
-                                texto += temp
+        if model.verificarNoticiaInserida(i['titulo'], i['permalink']) == False:
+            if i['tipo'] == "materia":
+                try:
+                    paragrafos = soup.find('div', class_ = "materia-conteudo").find_all('p')
+                except:
+                    print("Noticia sem paragrafos. **********************************")
+                    model.gravarLog(idMensagens=27,tituloNoticia=i['titulo'], link= i['permalink'])
+                    continue
+                texto = ""
+                for j in paragrafos:
+                    temp = j.get_text()
+                    temp = temp.replace("\n","")
+                    temp = temp.replace("\t","")
+                    temp = temp.replace("\r","")
+                    temp = temp.replace("\u266a","")
+                    if len(temp) > 3:
+                        texto += temp
 
-                        texto = texto.replace('"',"'")
-                        i['subtitulo'] = i['subtitulo'].replace('"', "'")
-                    else:
-                        '''Noticia do tipo Galeria que não possui texto'''
-                        print("************ Noticia tipo GALERIA: " + i['permalink'] + " TIPO: " + str(i['tipo']))
-                        texto = None
-                        i['subtitulo'] = i['subtitulo'].replace('"',"'")
-                    noticia = { 'titulo': i['titulo'], 'tipo': i['tipo'], 'subtitulo': i['subtitulo'], 'link': i['permalink'], 'texto': texto, 'data': i['primeira_publicacao']}
-                    model.cadastrarNoticia(noticia)
-        else:
-            tentarNovamente = False
+                texto = texto.replace('"',"'")
+                i['subtitulo'] = i['subtitulo'].replace('"', "'")
+            else:
+                '''Noticia do tipo Galeria que não possui texto'''
+                print("************ Noticia tipo GALERIA: " + i['permalink'] + " TIPO: " + str(i['tipo']))
+                texto = None
+                i['subtitulo'] = i['subtitulo'].replace('"',"'")
+            noticia = { 'titulo': i['titulo'], 'tipo': i['tipo'], 'subtitulo': i['subtitulo'], 'link': i['permalink'], 'texto': texto, 'data': i['primeira_publicacao']}
+            model.cadastrarNoticia(noticia)
 '''
 def extrairCitadosTexto():
     listaFamosos = model.buscarListaFamoso()
@@ -148,14 +152,12 @@ def extrairCitadosTextoBestExtract(link):
         return result
 '''
 
-def extrairCitadosTexto():
+def extrairCitadosTexto(qtdNoticiaAtual = 0):
     listaFamosos = model.buscarListaFamoso()
     listaNoticias = model.buscarListaNoticias()
-    qtdNoticiaAtual =0
-    qtdTotalNoticias = len(listaNoticias)
+    qtdTotalNoticias = len(listaNoticias) - 1
     if listaNoticias != False and listaFamosos != False:
-        for i in listaNoticias:
-            qtdNoticiaAtual += 1
+        for i in listaNoticias[qtdNoticiaAtual:]:
             noticia = {'id': i[0], 'titulo': i[1], 'subtitulo': i[2], 'link': i[3], 'tipo': i[4], 'texto': i[5]}
             print(str(qtdNoticiaAtual) + "/" + str(qtdTotalNoticias) + " - " + str(noticia['titulo']))
             for j in listaFamosos:
@@ -166,6 +168,22 @@ def extrairCitadosTexto():
                 todosNomes = famoso['nome'].split(" ")
                 textoTotal = noticia['titulo'] + " " + noticia['subtitulo'] + " " + noticia['texto']
 
+                if len(todosNomes) == 1:
+                    textoQuebrado = set(textoTotal.lower().split(" "))
+                    conjuntoNomeCompleto = { nomeCompleto.lower() }
+                    if conjuntoNomeCompleto.issubset(textoQuebrado):
+                        if model.relacionarFamosoNoticia(famoso['nome'], noticia['id']) == False:
+                            print(" - " + str(nomeCompleto) + " ja relacionado com a noticia.")
+                        else:
+                            print(" - " + str(nomeCompleto))
+                else:
+                    if nomeCompleto.lower() in textoTotal.lower():
+                        if model.relacionarFamosoNoticia(famoso['nome'], noticia['id']) == False:
+                            print(" - " + str(nomeCompleto) + " ja relacionado com a noticia.")
+                        else:
+                            print(" - " + str(nomeCompleto))
+
+                '''
                 ratioTotal += fuzz.token_set_ratio(nomeCompleto, textoTotal)
 
                 if len(todosNomes) == 1:
@@ -181,6 +199,24 @@ def extrairCitadosTexto():
                         print(" - " + str(nomeCompleto) + " ja relacionado com a noticia.")
                     else:
                         print(" - " + str(nomeCompleto))
+                '''
+            qtdNoticiaAtual += 1
+
+def alterarTituloNoticias():
+    listaNoticias = model.buscarListaNoticias()
+    for noticia in listaNoticias:
+        titulo = noticia[1]
+
+        if "\u200f" in titulo:
+            titulo = titulo.replace("\u200f", "")
+            titulo = titulo.strip()
+            model.atualizarTituloNoticia(idNoticia = noticia[0], novoTitulo = titulo)
+            print(str(noticia[0]) + "/" + str(len(listaNoticias)) + " - Titulo atualizado")
+        else:
+            print(str(noticia[0]) + "/" + str(len(listaNoticias)))
+
+
+
 '''
 def extrairCitadosTextoProcess():
     listaFamosos = model.buscarListaFamoso()
@@ -216,13 +252,17 @@ def extrairCitadosTextoProcess():
 
         f.close()
 '''
-
-
+'''
+pagina = 5440; ; ultima pagina: 5364
 tentarNovamente = True
 qtd = 0
 while tentarNovamente == True:
     try:
-        processarNoticias()
+        conteudo = buscarnoticiasjson(pagina)
+        if conteudo == False:
+            tentarNovamente = False
+        processarNoticias(conteudo['noticias'])
+        pagina = conteudo['ultimaPagina'] + 1
         qtd = 0
     except Exception as e:
         print(str(e))
@@ -231,5 +271,7 @@ while tentarNovamente == True:
         qtd += 1
         if qtd > 5:
             tentarNovamente = False
-'''extrairCitadosTexto()'''
+
+extrairCitadosTexto(46404)'''
+
 print("Fim da execucao")

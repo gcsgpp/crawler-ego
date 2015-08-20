@@ -1,6 +1,8 @@
 __author__ = 'Gabriel'
 import mysql.connector
 
+cnx = ""
+
 def conexao():
     return mysql.connector.connect(host = "localhost", user = "root", database = "famososdb", charset="utf8")
 
@@ -149,7 +151,6 @@ def buscarTipoRelacionamento(descricaoRelacionamento, nomeFamoso):
         cursor.execute(sql)
         result = cursor.fetchone()
         if result != None:
-
             cursor.close()
             cnx.close()
 
@@ -158,11 +159,12 @@ def buscarTipoRelacionamento(descricaoRelacionamento, nomeFamoso):
             sql = "INSERT INTO tipos_relacionamentos(descricao) VALUES('" + str(descricaoRelacionamento) + "')"
             cursor.execute(sql)
             cnx.commit()
+            lastrowid = cursor.lastrowid
 
             cursor.close()
             cnx.close()
 
-            return cursor.lastrowid
+            return lastrowid
     except Exception as e:
         print(str(e))
         gravarLog(idMensagens = 16, nomeFamoso = nomeFamoso)
@@ -180,9 +182,9 @@ def buscarConjugeJaInserido(nomeConjuge, nomeFamoso):
     try:
         cursor.execute(sql)
         result = cursor.fetchone()
+        cursor.close()
+        cnx.close()
         if result != None:
-            cursor.close()
-            cnx.close()
             return result[0]
         else:
             return False
@@ -190,6 +192,8 @@ def buscarConjugeJaInserido(nomeConjuge, nomeFamoso):
         print(str(e))
         print("Erro ao buscar conjuge já inserido.")
         gravarLog(idMensagens = 20, nomeFamoso = str(nomeFamoso))
+        cursor.close()
+        cnx.close()
         return False
 
 def inserirConjuge(conjugeNome, nomeFamoso):
@@ -204,8 +208,12 @@ def inserirConjuge(conjugeNome, nomeFamoso):
             cnx.commit()
 
             id = cursor.lastrowid
+            cursor.close()
+            cnx.close()
             return id
         else:
+            cursor.close()
+            cnx.close()
             return conjugeId
 
     except Exception as e:
@@ -225,9 +233,9 @@ def buscarSigno(signo, nomeFamoso):
     try:
         cursor.execute(sql)
         result = cursor.fetchone()
+        cursor.close()
+        cnx.close()
         if result != None:
-            cursor.close()
-            cnx.close()
             return result[0]
         else:
             print("Nao foi possivel encontrar o signo do Famoso: " + str(nomeFamoso)+ " na lista do BD. Signo: " + str(signo))
@@ -236,6 +244,8 @@ def buscarSigno(signo, nomeFamoso):
         print(str(e))
         print("Erro ao buscar id do signo.")
         gravarLog(idMensagens = 19, nomeFamoso = str(nomeFamoso))
+        cursor.close()
+        cnx.close()
         return 0
 
 def buscarListaFamoso():
@@ -256,6 +266,8 @@ def buscarListaFamoso():
         print(str(e))
         print("Erro ao buscar lista de famosos")
         gravarLog(idMensagens = 24)
+        cursor.close()
+        cnx.close()
         return False
 
 
@@ -281,6 +293,28 @@ def cadastrarNoticia(noticia):
     cursor.close()
     cnx.close()
 
+def cadastrarNoticiaComThread(noticia, threadName):
+    cnx = conexao()
+    cursor = cnx.cursor(buffered = True)
+
+    if noticia['tipo'] == "materia": noticia['tipo'] = 1
+    elif noticia['tipo'] == "galeria": noticia['tipo'] = 2
+
+    sql = 'INSERT INTO noticia3(titulo, subtitulo, link, tipo, texto, dataPrimeiraPublicacao) VALUES("' + str(noticia['titulo']) + '","' + str(noticia['subtitulo']) + '","' + str(noticia['link']) + '","' + str(noticia['tipo']) + '","' + str(noticia['texto']) + '","' + str(noticia['data']) + '")'
+
+    try:
+        cursor.execute(sql)
+        cnx.commit()
+        print(str(threadName) + " - Noticia: " + noticia['titulo'])
+        '''gravarLog(idMensagens = 4, idNoticia = cursor.lastrowid)'''
+    except Exception as e:
+        print(str(e))
+        print("Não foi possivel cadastrar a noticia: " + noticia['link'] + "    *********")
+        gravarLog(idMensagens = 13, tituloNoticia = noticia['titulo'])
+
+    cursor.close()
+    cnx.close()
+
 def verificarNoticiaInserida(titulo, link):
     cnx = conexao()
     cursor = cnx.cursor(buffered = True)
@@ -295,12 +329,39 @@ def verificarNoticiaInserida(titulo, link):
     except Exception as e:
         print(str(e))
         print("Erro ao verificar se a noticia ja esta cadastrada")
+        cursor.close()
+        cnx.close()
 
     if len(result) == 0:
         return False
     else:
         print("Noticia já cadastrada. Titulo: " + str(titulo))
         return True
+
+def verificarNoticiaInseridaComThread(titulo, link, threadName):
+    cnx = conexao()
+    cursor = cnx.cursor(buffered = True)
+
+    sql = 'SELECT * from noticia3 WHERE noticia3.titulo = "' + str(titulo) + '" or noticia3.link = "' + str(link) + '"'
+
+    try:
+        cursor.execute(sql)
+        result = cursor.fetchall()
+        cursor.close()
+        cnx.close()
+
+        if len(result) == 0:
+            return False
+        else:
+            print(str(threadName) + " - Noticia já cadastrada. Titulo: " + str(titulo))
+            return True
+    except Exception as e:
+        print(str(e))
+        print(str(threadName) + " - Erro ao verificar se a noticia ja esta cadastrada")
+        cursor.close()
+        cnx.close()
+
+
 
 def buscarListaNoticias():
     cnx = conexao()
@@ -322,10 +383,12 @@ def buscarListaNoticias():
         print(str(e))
         print("Erro ao buscar lista de noticias")
         gravarLog(idMensagens = 23)
+        cursor.close()
+        cnx.close()
         return False
 def verificarRelacionamentoFamosoNoticia(idFamoso, idNoticia):
     cnx = conexao()
-    cursor = cnx.cursor()
+    cursor = cnx.cursor(buffered = True)
     sql = "SELECT * FROM famoso_noticia WHERE idFamoso = '" + str(idFamoso) + "' and idNoticia = '" + str(idNoticia) + "'"
     try:
         cursor.execute(sql)
@@ -337,6 +400,8 @@ def verificarRelacionamentoFamosoNoticia(idFamoso, idNoticia):
         print(str(e))
         print("Erro ao executar verificação se famoso ja esta relacionado")
         gravarLog(idMensagens=26, idFamoso = idFamoso, idNoticia = idNoticia)
+        cursor.close()
+        cnx.close()
         return False
 
 def relacionarFamosoNoticia(nomeFamoso, idNoticia):
@@ -361,6 +426,8 @@ def relacionarFamosoNoticia(nomeFamoso, idNoticia):
         print(str(e))
         print("Erro ao inserir relacionamento do Famoso com a Noticia. Famoso: " + str(nomeFamoso) + " idNoticia: " + str(idNoticia))
         gravarLog(idMensagens = 25, idFamoso = idFamoso, idNoticia = idNoticia)
+        cursor.close()
+        cnx.close()
 
 def converterListaUTF8(lista):
     listaConvertida = []
@@ -385,7 +452,90 @@ def buscarNoticia(link):
         result = cursor.fetchone()
         cursor.close()
         cnx.close()
-        return converterListaUTF8(result)
+        if result != None:
+            return converterListaUTF8(result)
+        else:
+            return False
     except Exception as e:
         print(str(e))
+        cursor.close()
+        cnx.close()
+        return False
+
+def buscarNoticiaComThread(link):
+    cnx = conexao()
+    cursor = cnx.cursor(buffered = True)
+    sql = "SELECT * from noticia3 WHERE link = '" + str(link) + "'"
+    try:
+        cursor.execute(sql)
+        result = cursor.fetchone()
+        cursor.close()
+        cnx.close()
+        if result != None:
+            return converterListaUTF8(result)
+        else:
+            return False
+    except Exception as e:
+        print(str(e))
+        cursor.close()
+        cnx.close()
+        return False
+
+def atualizarTituloNoticia(idNoticia, novoTitulo):
+    cnx = conexao()
+    cursor = cnx.cursor(buffered = True)
+    sql = 'UPDATE noticia SET titulo = "' + str(novoTitulo) + '" WHERE id = "' + str(idNoticia) + '"'
+    try:
+        cursor.execute(sql)
+        cnx.commit()
+        cursor.close()
+        cnx.close()
+    except Exception as e:
+        cursor.close()
+        cnx.close()
+        print(str(e))
+
+def buscarCategoria(categoria):
+    cnx = conexao()
+    cursor = cnx.cursor(buffered = True)
+    sql = 'SELECT * FROM tipos_categorias WHERE categoria = "' + str(categoria) + '"'
+    try:
+        cursor.execute(sql)
+        result = cursor.fetchone()
+        cursor.close()
+        cnx.close()
+        return result
+    except Exception as e:
+        cursor.close()
+        cnx.close()
+        print(str(e))
+
+def cadastrarCategoriaNoticia(categoria):
+    cnx = conexao()
+    cursor = cnx.cursor(buffered = True)
+    sql = 'INSERT INTO tipos_categorias(categoria) VALUES("' + str(categoria) + '")'
+    try:
+        cursor.execute(sql)
+        cnx.commit()
+        cursor.close()
+        cnx.close()
+    except Exception as e:
+        cursor.close()
+        cnx.close()
+        print(str(e))
+
+def vincularCategoriaNoticia(idCategoria, idNoticia):
+    cnx = conexao()
+    cursor = cnx.cursor(buffered = True)
+    sql = 'INSERT INTO noticias_categorias(idCategoria, idNoticia) VALUES("' + str(idCategoria) + '","' + str(idNoticia) + '")'
+    try:
+        cursor.execute(sql)
+        cnx.commit()
+        cursor.close()
+        cnx.close()
+        return True
+    except Exception as e:
+        print(str(e))
+        cursor.close()
+        cnx.close()
         return False

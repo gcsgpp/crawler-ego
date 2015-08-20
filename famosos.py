@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup as bs
 import model
 import urllib.request
 import urllib.error
+import time
 
 def limpezaNome(i):
     i = str(i)
@@ -129,11 +130,36 @@ def crawlerListaFamosos():
                 model.gravarLog(idMensagens = 12, nomeFamoso = famoso['nome'])
                 print("Erro inesperado ao obter detalhes do famoso. Gravado no log com sucesso! Famoso: " + famoso['nome'])
 
-crawlerListaFamosos()
+tentarNovamente = True
+qtd = 0
+while tentarNovamente == True:
+    try:
+        crawlerListaFamosos()
+        tentarNovamente = False
+    except Exception as e:
+        print(str(e))
+        print("Esperando 5 segundos.....")
+        time.sleep(5)
+        qtd += 1
+        if qtd > 5:
+            tentarNovamente = False
+
 print("*****************************************************")
 print("*****************************************************")
 print("***********INICIO FAMOSO RELACIONADO*****************")
 print("*****************************************************")
 print("*****************************************************")
 
-crawlerFamosoRelacionados()
+tentarNovamente = True
+qtd = 0
+while tentarNovamente == True:
+    try:
+        crawlerFamosoRelacionados()
+        tentarNovamente = False
+    except Exception as e:
+        print(str(e))
+        print("Esperando 5 segundos.....")
+        time.sleep(5)
+        qtd += 1
+        if qtd > 5:
+            tentarNovamente = False
