@@ -24,19 +24,17 @@ def limpezaNome(i):
 
     return i
 
-def crawlerFamosoRelacionados():
-    listafamosos = model.buscarListaFamoso()
-    for i in listafamosos:
+def crawlerFamosoRelacionados(i):
         famoso = {'id': i[0], 'nome': i[1].strip(), 'link': i[2], 'nascimento': i[3], 'idade': i[4], 'signo': i[5], 'relacionamento': i[6], 'conjuge': i[7]}
         try:
             html = urllib.request.urlopen("http://ego.globo.com" + famoso['link'])
             soup = bs(html, "html.parser")
             listaRelacionados = soup.find("ul", class_ = "famosos-relacionados")
 
+            print(str(famoso['nome']))
             if listaRelacionados != None:
                 listaRelacionados = listaRelacionados.find_all("a")
 
-                print(str(famoso['nome']))
                 for j in listaRelacionados:
                     linkRelacionado = j.attrs['href']
                     nomeRelacionado = j.find("img").attrs['alt']
@@ -48,12 +46,19 @@ def crawlerFamosoRelacionados():
                             print("  - Famoso: " + str(famosoRelacionado['nome']) + " inserido com sucesso.")
                     else:
                         print("  - Famoso: " + str(famosoRelacionado['nome']) + " já inserido.")
+
+            return True
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 print("Pagina do famoso nao encontrada")
                 model.gravarLog(idMensagens = 11, idFamoso = famoso['id'])
+                return False
             else:
                 print(str(e) + " Famoso: " + str(famoso['nome']))
+                return False
+        except Exception as e:
+            print(str(e))
+            return False
 
 
 def crawlerListaFamosos():
@@ -72,6 +77,7 @@ def crawlerListaFamosos():
             soupdetalhes = bs(htmldetalhes, "html.parser")
 
             detalheshtml = soupdetalhes.find("ul", class_ = "detalhes")
+
             if detalheshtml != None:
                 relacionamento = detalheshtml.find("li", class_="relacionamento")
                 if relacionamento != None:
@@ -85,6 +91,8 @@ def crawlerListaFamosos():
                     if relacionamento == "divorciada": relacionamento = "divorciado"
 
                     relacionamento = model.buscarTipoRelacionamento(relacionamento, famoso['nome'])
+                else:
+                    relacionamento = 0
 
                 conjuge = detalheshtml.find("li", class_="relacionamento")
                 if conjuge != None:
@@ -94,6 +102,10 @@ def crawlerListaFamosos():
                         '''conjugeNome = limpezaNome(conjugeNome)'''
 
                         conjuge = model.inserirConjuge(conjugeNome, famoso['nome'])
+                    else:
+                        conjuge = 0
+                else:
+                    conjuge = 0
 
                 idade = detalheshtml.find("li", class_ = "aniversario")
                 if idade != None:
@@ -120,7 +132,7 @@ def crawlerListaFamosos():
                 model.gravarLog(idMensagens = 11, nomeFamoso = famoso['nome'])
                 print("Página não encontrada. Gravado no log com sucesso! Famoso: " + famoso['nome'])
 
-                relacionamento = conjuge = idade = datanascimento = signo = 0
+                relacionamento = conjuge = idade = datanascimento = signo = ''
 
                 '''famoso['nome'] = limpezaNome(famoso['nome'])'''
                 famoso.update({'nome': famoso['nome'], 'idade': idade, 'datanascimento': datanascimento, 'signo': signo, 'relacionamento': relacionamento, 'conjuge': conjuge })
@@ -129,7 +141,7 @@ def crawlerListaFamosos():
             else:
                 model.gravarLog(idMensagens = 12, nomeFamoso = famoso['nome'])
                 print("Erro inesperado ao obter detalhes do famoso. Gravado no log com sucesso! Famoso: " + famoso['nome'])
-
+'''
 tentarNovamente = True
 qtd = 0
 while tentarNovamente == True:
@@ -143,7 +155,7 @@ while tentarNovamente == True:
         qtd += 1
         if qtd > 5:
             tentarNovamente = False
-
+'''
 print("*****************************************************")
 print("*****************************************************")
 print("***********INICIO FAMOSO RELACIONADO*****************")
@@ -151,15 +163,16 @@ print("*****************************************************")
 print("*****************************************************")
 
 tentarNovamente = True
-qtd = 0
-while tentarNovamente == True:
-    try:
-        crawlerFamosoRelacionados()
-        tentarNovamente = False
-    except Exception as e:
-        print(str(e))
+posicaoFamoso = qtdTentativas = 1830
+listafamosos = model.buscarListaFamoso()
+while posicaoFamoso <= (len(listafamosos) - 1):
+    print("Famoso: " + str(posicaoFamoso + 1) + "/" + str(len(listafamosos)))
+    if crawlerFamosoRelacionados(listafamosos[posicaoFamoso]) == True:
+        posicaoFamoso += 1
+    else:
         print("Esperando 5 segundos.....")
         time.sleep(5)
-        qtd += 1
-        if qtd > 5:
-            tentarNovamente = False
+        qtdTentativas += 1
+        if qtdTentativas > 5:
+            posicaoFamoso += 1
+
